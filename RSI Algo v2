@@ -1,0 +1,76 @@
+//@version=5
+
+strategy('RSI Algo v2', overlay=true)
+
+//-- Colors
+
+colorRed = #ff0000
+colorPurple = #e600e6
+colorGreen = #3fff00
+colorOrange = #e2a400
+colorBlack = #000000
+colorWhite = #FFFFFF
+colorYellow = #ffff00
+colorGold = #f57c00
+colorMidGreen = #069d11
+colorDeepRed = #800000
+colorMidRed = #c50808
+colorLavendar = #8d4dff
+colorDarkGreen = #016808
+colorTrans = color.new(colorBlack, 100)
+colorTransGreen = color.new(colorGreen, 80)
+colorTransRed = color.new(colorRed, 80)
+
+//-- Inputs
+
+myPeriod = input(defval=14, title='Period')
+myThresholdUp = input(defval=70, title='Upper Threshold')
+myThresholdDn = input(defval=30, title='Lower Threshold')
+myAlgoFlipToggle = input(defval=false, title='Imverse Algorthim')
+myLineToggle = input(defval=true, title='Show Lines')
+myLabelToggle = input(defval=true, title='Show Labels')
+
+myRSI = ta.rsi(close, myPeriod)
+
+//-- Variables
+
+buy = myAlgoFlipToggle ? ta.falling(myRSI, 1) and ta.cross(myRSI, myThresholdDn) : ta.rising(myRSI, 1) and ta.cross(myRSI, myThresholdUp)
+sell = myAlgoFlipToggle ? ta.rising(myRSI, 1) and ta.cross(myRSI, myThresholdUp) : ta.falling(myRSI, 1) and ta.cross(myRSI, myThresholdDn)
+
+var myPosition = 0
+
+myPosition := buy == 1 ? 0 : sell == 1 or myPosition[1] == 1 ? 1 : 0
+
+trendColor = buy ? colorTransRed : sell ? colorTransGreen : na
+
+var isLong = false
+var isShort = false
+
+buySignal = not isLong and myLabelToggle ? buy and myPosition[1] == 1 ? low - 0.005 : na : na  // Buy only if we are not already long
+sellSignal = not isShort and myLabelToggle ? sell and myPosition[1] == 0 ? high + 0.005 : na : na  // Sell only if we are not already short
+
+if buySignal
+    isLong := true
+    isShort := false
+    isShort
+
+if sellSignal
+    isLong := false
+    isShort := true
+    isShort
+
+//-- Plots
+
+plot(myLineToggle ? buy and myPosition[1] == 1 ? low - 0.004 : sell and myPosition[1] == 0 ? high + 0.004 : na : na, color=trendColor, linewidth=4, editable=false)
+
+//plotshape(series=buySignal, style=shape.labelup, location=location.belowbar, color=colorGreen, size=size.tiny, editable=true, text='Long', textcolor=color.new(color.black, 0), title='Long Label')
+//plotshape(series=sellSignal, style=shape.labeldown, location=location.abovebar, color=colorRed, size=size.tiny, editable=true, text='Short', textcolor=color.new(color.white, 0), title='Short Label')
+
+//-- Alerts
+
+//alertcondition(buySignal, title='Long', message='buy')
+//alertcondition(sellSignal, title='Short', message='sell')
+
+
+strategy.entry("buy", strategy.long, when = buySignal)
+strategy.entry("sell", strategy.short, when = sellSignal)
