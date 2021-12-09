@@ -1,0 +1,79 @@
+// @version=5
+indicator("Ultimate Indicator", overlay=true)
+rate = input.float(0.5, "Rate", minval = 0.1, maxval = 100, step = 0.1)
+signal = input.bool(true, "Signal")
+breakout = input.bool(false, "Breakout")
+
+// Box
+var peak = bool(na)
+var trough = bool(na)
+var up = float(na)
+var down = float(na)
+var box boxUp = na
+var box boxDown = na
+bool newPeak = ta.change(peak ? 1 : 0)
+bool newTrough = ta.change(trough ? 1 : 0)
+
+if newPeak
+    up := open
+else
+    if close[0] < close[1] and close[1] > close[2]
+        peak := true
+        up := open
+    if close[0] < close[1]
+        boxUp := box.new(bar_index, up, bar_index + 1, close, border_color = color.gray, bgcolor = color.new(color.red, 80))
+
+if newTrough
+    down := open
+else
+    if close[0] > close[1] and close[1] < close[2]
+        trough := true
+        down := open
+    if close[0] > close[1]
+        boxDown := box.new(bar_index, close, bar_index + 1, down, border_color = color.gray, bgcolor = color.new(color.blue, 80))
+
+// Shape
+plotshape(close[0] > close[1] and close[1] > close[2], style = shape.xcross, location = location.abovebar, color = #26A69A)
+plotshape(close[0] < close[1] and close[1] < close[2], style = shape.circle, location = location.belowbar, color = #EF5350)
+plotshape(close[0] < close[1] and close[1] > close[2], style = shape.diamond, location = location.abovebar, color = #EF5350)
+plotshape(close[0] > close[1] and close[1] < close[2], style = shape.square, location = location.belowbar, color = #26A69A)
+
+// Spread
+if close[0] < close[1]
+    value = str.format("{0,number,#.#}", (up - close) / up * 100)
+    side = close[1] < close[2] ? yloc.belowbar : yloc.abovebar
+    label.new(bar_index, na, value, yloc = side, style = label.style_none, textcolor = #EF5350)
+
+if close[0] > close[1]
+    value = str.format("{0,number,#.#}", (close - down) / close * 100)
+    side = close[1] > close[2] ? yloc.abovebar : yloc.belowbar
+    label.new(bar_index, na, value, yloc = side, style = label.style_none, textcolor = #26A69A)
+
+// Signal
+var resistance = bool(na)
+var support = bool(na)
+var max = float(na)
+var min = float(na)
+bool newMax = ta.change(resistance ? 1 : 0)
+bool newMin = ta.change(support ? 1 : 0)
+index = breakout ? close : open
+
+if newMax
+    max := index
+else if newMin
+    min := index
+else if signal
+    above = (index - min) / index * 100
+    below = (index - max) / index * 100
+    top = close[0] < close[1] and close[1] > close[2]
+    bottom = close[0] > close[1] and close[1] < close[2]
+    if top and (na(max) or above >= rate)
+        max := index
+        resistance := true
+        value = "SELL\n" + str.format("{0,number,#.#}", math.abs(above))
+        label.new(bar_index - (breakout ? 0 : 1), na, value, yloc = yloc.abovebar, style = label.style_label_down, textcolor = color.white, color = color.red)
+    if bottom and (na(min) or below <= -rate)
+        min := index
+        support := true
+        value = "BUY\n" + str.format("{0,number,#.#}", math.abs(below))
+        label.new(bar_index - (breakout ? 0 : 1), na, value, yloc = yloc.belowbar, style = label.style_label_up, textcolor = color.white, color = color.blue)
