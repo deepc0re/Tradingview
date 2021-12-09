@@ -1,0 +1,164 @@
+//@version=4
+
+//Structural Pivots
+study(title="Pivot Boss Floor Pivots with ATR Dilation and Dynamic Levels", shorttitle="Pivot Boss Floor Pivots", overlay=true, max_labels_count=500)
+
+
+// User Inputs 
+//==============================================================================
+floor_pivot_timeframe           = input("D",    options=["D", "W", "M", "12M"],             title="Floor Pivot Timeframe",                      group="Floor Pivots")
+show_floor_pivots               = input(true,   type=input.bool,                            title="Show Floor Pivots",                          group="Floor Pivots")
+show_cpr                        = input(true,   type=input.bool,                            title="Show CPR",                                   group="Floor Pivots")
+show_labels                     = input(true,   type=input.bool,                            title="Show Pivot Lables",                          group="Floor Pivots")
+show_next_day_pivot             = input(false,  type=input.bool,                            title="Show Next Time Period Pivots",               group="Floor Pivots")
+
+dynamic_pivot_levels            = input(true,   type=input.bool,                            title="Show Floor Pivot Levels Dynamically",        group="Dynamic Pivot Levels")
+dynamic_pivot_atr_period        = input(14,     type=input.integer, minval=1, maxval=356,   title="Dynamic Pivot ATR Period",                   group="Dynamic Pivot Levels")
+dynamic_pivot_atr_threshold     = input(2.0,    type=input.float,   minval=0.001, maxval=10,title="ATR Threshold for Dynamic Floor Pivots",     group="Dynamic Pivot Levels")
+
+atr_dilation                    = input(true,   type=input.bool,                            title="Use ATR to Dilate Intraday Pivot Levels",    group="ATR Pivot Dilation")
+atr_multiplier                  = input(0.05,   type=input.float,   minval=0.001, maxval=10,title="ATR Dilation Factor",                        group="ATR Pivot Dilation")
+atr_period                      = input(14,     type=input.integer, minval=1, maxval=356,   title="ATR Period",                                 group="ATR Pivot Dilation")
+
+floor_pivots_p_color            = input(color.new(color.yellow, 0), type = input.color,     title="Central Floor Pivot",                        group="Color Scheme")
+floor_pivots_cpr_color          = input(color.new(color.blue, 50),  type = input.color,     title="CPR Band",                                   group="Color Scheme")
+floor_pivots_r_color            = input(color.new(color.red, 0),    type = input.color,     title="Floor Pivots Resistance Levels",             group="Color Scheme")
+floor_pivots_s_color            = input(color.new(color.lime, 0),   type = input.color,     title="Floor Pivots Support Levels",                group="Color Scheme")
+
+
+// Calculations  
+//==============================================================================
+// Floor Pivots 
+// Central Pivot 
+pivot = (high + low + close) / 3.0
+// Resistance Levels 
+r1 = (2 * pivot) - low
+r2 = pivot + (high - low)
+r3 = r1 + (high - low)
+r4 = r3 + (r2 - r1) 
+// Support Levels 
+s1 = (2 * pivot) - high  
+s2 = pivot - (high - low) 
+s3 = s1 - (high - low) 
+s4 = s3 - (s1 - s2)
+// Central Pivot Range 
+temp_bc = (high + low) / 2 
+temp_tc = (pivot - temp_bc) + pivot 
+tc = temp_tc > temp_bc ? temp_tc : temp_bc
+bc = temp_bc < temp_tc ? temp_bc : temp_tc
+// Dynamic Floor Pivots 
+dynamic_pivot_atr = atr(dynamic_pivot_atr_period) * dynamic_pivot_atr_threshold
+dynamic_high = high + dynamic_pivot_atr
+dynamic_low = low - dynamic_pivot_atr
+// Average True Range for Pivot Level Dilation
+atr_norm = atr(atr_period) * atr_multiplier
+// Timeframe 
+floor_pivot_resolution = floor_pivot_timeframe
+
+
+// Floor Pivots
+//==============================================================================
+// Dynamic Floor Pivot Variables 
+var bool show_daily_pivot   = na
+var bool show_daily_r1      = na
+var bool show_daily_r2      = na
+var bool show_daily_r3      = na
+var bool show_daily_r4      = na
+var bool show_daily_s1      = na
+var bool show_daily_s2      = na
+var bool show_daily_s3      = na
+var bool show_daily_s4      = na
+// Daily Average True Range for ATR Dilation
+daily_atr_dilation = security(syminfo.tickerid, 'D', atr_norm[1], barmerge.gaps_off, barmerge.lookahead_on)
+// Daily Floor Pivots 
+daily_pivot = security(syminfo.tickerid, floor_pivot_resolution, show_next_day_pivot ? pivot : pivot[1],        barmerge.gaps_off, barmerge.lookahead_on)
+daily_r1    = security(syminfo.tickerid, floor_pivot_resolution, show_next_day_pivot ? r1 : r1[1],              barmerge.gaps_off, barmerge.lookahead_on) 
+daily_r2    = security(syminfo.tickerid, floor_pivot_resolution, show_next_day_pivot ? r2 : r2[1],              barmerge.gaps_off, barmerge.lookahead_on) 
+daily_r3    = security(syminfo.tickerid, floor_pivot_resolution, show_next_day_pivot ? r3 : r3[1],              barmerge.gaps_off, barmerge.lookahead_on) 
+daily_r4    = security(syminfo.tickerid, floor_pivot_resolution, show_next_day_pivot ? r4 : r4[1],              barmerge.gaps_off, barmerge.lookahead_on) 
+daily_s1    = security(syminfo.tickerid, floor_pivot_resolution, show_next_day_pivot ? s1 : s1[1],              barmerge.gaps_off, barmerge.lookahead_on) 
+daily_s2    = security(syminfo.tickerid, floor_pivot_resolution, show_next_day_pivot ? s2 : s2[1],              barmerge.gaps_off, barmerge.lookahead_on)
+daily_s3    = security(syminfo.tickerid, floor_pivot_resolution, show_next_day_pivot ? s3 : s3[1],              barmerge.gaps_off, barmerge.lookahead_on)
+daily_s4    = security(syminfo.tickerid, floor_pivot_resolution, show_next_day_pivot ? s4 : s4[1],              barmerge.gaps_off, barmerge.lookahead_on)
+daily_tbc   = security(syminfo.tickerid, floor_pivot_resolution, show_next_day_pivot ? temp_bc : temp_bc[1],    barmerge.gaps_off, barmerge.lookahead_on)
+daily_ttc   = security(syminfo.tickerid, floor_pivot_resolution, show_next_day_pivot ? temp_tc : temp_tc[1],    barmerge.gaps_off, barmerge.lookahead_on)
+daily_tc    = daily_ttc > daily_tbc ? daily_ttc : daily_tbc
+daily_bc    = daily_tbc < daily_ttc ? daily_tbc : daily_ttc
+// Dynamic Daily Floor Pivot Logic (only for Intraday)
+show_daily_pivot    := show_daily_pivot[1]  == false and dynamic_pivot_levels and timeframe.isintraday and ((daily_pivot  >= dynamic_low and daily_pivot  <= dynamic_high) or (daily_tc >= dynamic_low and daily_tc <= dynamic_high) or (daily_bc >= dynamic_low and daily_bc <= dynamic_high)) ? 1 : dynamic_pivot_levels == false ? 1 : show_daily_pivot[1]  == true and dayofmonth == dayofmonth[1] ? 1 : 0
+show_daily_r1       := show_daily_r1[1]     == false and dynamic_pivot_levels and timeframe.isintraday and daily_r1       >= dynamic_low and daily_r1     <= dynamic_high ? 1 : dynamic_pivot_levels == false ? 1 : show_daily_r1[1]     == true and dayofmonth == dayofmonth[1] ? 1 : 0
+show_daily_r2       := show_daily_r2[1]     == false and dynamic_pivot_levels and timeframe.isintraday and daily_r2       >= dynamic_low and daily_r2     <= dynamic_high ? 1 : dynamic_pivot_levels == false ? 1 : show_daily_r2[1]     == true and dayofmonth == dayofmonth[1] ? 1 : 0
+show_daily_r3       := show_daily_r3[1]     == false and dynamic_pivot_levels and timeframe.isintraday and daily_r3       >= dynamic_low and daily_r3     <= dynamic_high ? 1 : dynamic_pivot_levels == false ? 1 : show_daily_r3[1]     == true and dayofmonth == dayofmonth[1] ? 1 : 0
+show_daily_r4       := show_daily_r4[1]     == false and dynamic_pivot_levels and timeframe.isintraday and daily_r4       >= dynamic_low and daily_r4     <= dynamic_high ? 1 : dynamic_pivot_levels == false ? 1 : show_daily_r4[1]     == true and dayofmonth == dayofmonth[1] ? 1 : 0
+show_daily_s1       := show_daily_s1[1]     == false and dynamic_pivot_levels and timeframe.isintraday and daily_s1       >= dynamic_low and daily_s1     <= dynamic_high ? 1 : dynamic_pivot_levels == false ? 1 : show_daily_s1[1]     == true and dayofmonth == dayofmonth[1] ? 1 : 0
+show_daily_s2       := show_daily_s2[1]     == false and dynamic_pivot_levels and timeframe.isintraday and daily_s2       >= dynamic_low and daily_s2     <= dynamic_high ? 1 : dynamic_pivot_levels == false ? 1 : show_daily_s2[1]     == true and dayofmonth == dayofmonth[1] ? 1 : 0
+show_daily_s3       := show_daily_s3[1]     == false and dynamic_pivot_levels and timeframe.isintraday and daily_s3       >= dynamic_low and daily_s3     <= dynamic_high ? 1 : dynamic_pivot_levels == false ? 1 : show_daily_s3[1]     == true and dayofmonth == dayofmonth[1] ? 1 : 0
+show_daily_s4       := show_daily_s4[1]     == false and dynamic_pivot_levels and timeframe.isintraday and daily_s4       >= dynamic_low and daily_s4     <= dynamic_high ? 1 : dynamic_pivot_levels == false ? 1 : show_daily_s4[1]     == true and dayofmonth == dayofmonth[1] ? 1 : 0
+
+
+// Plots   
+//==============================================================================
+// Neutral and ATR Dilated Positive plots 
+p1a = plot(show_floor_pivots and show_daily_pivot and not atr_dilation ? daily_pivot : show_floor_pivots and show_daily_pivot and atr_dilation and timeframe.isintraday ? daily_pivot+daily_atr_dilation : show_floor_pivots and show_daily_pivot and atr_dilation and not timeframe.isintraday ? daily_pivot : na, title = "Pivot",        color = color.new(floor_pivots_p_color, atr_dilation and timeframe.isintraday ? 100 : 0),   linewidth = 1, style = plot.style_circles)
+r1a = plot(show_floor_pivots and show_daily_r1 and not atr_dilation ? daily_r1 : show_floor_pivots and show_daily_r1 and atr_dilation and timeframe.isintraday ? daily_r1+daily_atr_dilation : show_floor_pivots and show_daily_r1 and atr_dilation and not timeframe.isintraday ? daily_r1 : na,                   title = "R1",           color = color.new(floor_pivots_r_color, atr_dilation and timeframe.isintraday ? 100 : 0),   linewidth = 1, style = plot.style_circles)
+r2a = plot(show_floor_pivots and show_daily_r2 and not atr_dilation ? daily_r2 : show_floor_pivots and show_daily_r2 and atr_dilation and timeframe.isintraday ? daily_r2+daily_atr_dilation : show_floor_pivots and show_daily_r2 and atr_dilation and not timeframe.isintraday ? daily_r2 : na,                   title = "R2",           color = color.new(floor_pivots_r_color, atr_dilation and timeframe.isintraday ? 100 : 0),   linewidth = 1, style = plot.style_circles)
+r3a = plot(show_floor_pivots and show_daily_r3 and not atr_dilation ? daily_r3 : show_floor_pivots and show_daily_r3 and atr_dilation and timeframe.isintraday ? daily_r3+daily_atr_dilation : show_floor_pivots and show_daily_r3 and atr_dilation and not timeframe.isintraday ? daily_r3 : na,                   title = "R3",           color = color.new(floor_pivots_r_color, atr_dilation and timeframe.isintraday ? 100 : 0),   linewidth = 1, style = plot.style_circles)
+r4a = plot(show_floor_pivots and show_daily_r4 and not atr_dilation ? daily_r4 : show_floor_pivots and show_daily_r4 and atr_dilation and timeframe.isintraday ? daily_r4+daily_atr_dilation : show_floor_pivots and show_daily_r4 and atr_dilation and not timeframe.isintraday ? daily_r4 : na,                   title = "R4",           color = color.new(floor_pivots_r_color, atr_dilation and timeframe.isintraday ? 100 : 0),   linewidth = 1, style = plot.style_circles)
+s1a = plot(show_floor_pivots and show_daily_s1 and not atr_dilation ? daily_s1 : show_floor_pivots and show_daily_s1 and atr_dilation and timeframe.isintraday ? daily_s1+daily_atr_dilation : show_floor_pivots and show_daily_s1 and atr_dilation and not timeframe.isintraday ? daily_s1 : na,                   title = "S1",           color = color.new(floor_pivots_s_color, atr_dilation and timeframe.isintraday ? 100 : 0),   linewidth = 1, style = plot.style_circles)
+s2a = plot(show_floor_pivots and show_daily_s2 and not atr_dilation ? daily_s2 : show_floor_pivots and show_daily_s2 and atr_dilation and timeframe.isintraday ? daily_s2+daily_atr_dilation : show_floor_pivots and show_daily_s2 and atr_dilation and not timeframe.isintraday ? daily_s2 : na,                   title = "S2",           color = color.new(floor_pivots_s_color, atr_dilation and timeframe.isintraday ? 100 : 0),   linewidth = 1, style = plot.style_circles)
+s3a = plot(show_floor_pivots and show_daily_s3 and not atr_dilation ? daily_s3 : show_floor_pivots and show_daily_s3 and atr_dilation and timeframe.isintraday ? daily_s3+daily_atr_dilation : show_floor_pivots and show_daily_s3 and atr_dilation and not timeframe.isintraday ? daily_s3 : na,                   title = "S3",           color = color.new(floor_pivots_s_color, atr_dilation and timeframe.isintraday ? 100 : 0),   linewidth = 1, style = plot.style_circles)
+s4a = plot(show_floor_pivots and show_daily_s4 and not atr_dilation ? daily_s4 : show_floor_pivots and show_daily_s4 and atr_dilation and timeframe.isintraday ? daily_s4+daily_atr_dilation : show_floor_pivots and show_daily_s4 and atr_dilation and not timeframe.isintraday ? daily_s4 : na,                   title = "S4",           color = color.new(floor_pivots_s_color, atr_dilation and timeframe.isintraday ? 100 : 0),   linewidth = 1, style = plot.style_circles)
+// ATR Dilated Negative Plots 
+p1b = plot(show_floor_pivots and show_daily_pivot and atr_dilation and timeframe.isintraday ? daily_pivot-daily_atr_dilation : na,         title = "DPivot",        color = color.new(floor_pivots_p_color, atr_dilation and timeframe.isintraday ? 100 : 0),   linewidth = 1, style = plot.style_circles)
+r1b = plot(show_floor_pivots and show_daily_r1 and atr_dilation and timeframe.isintraday ? daily_r1-daily_atr_dilation : na,               title = "DR1",           color = color.new(floor_pivots_r_color, atr_dilation and timeframe.isintraday ? 100 : 0),   linewidth = 1, style = plot.style_circles)
+r2b = plot(show_floor_pivots and show_daily_r2 and atr_dilation and timeframe.isintraday ? daily_r2-daily_atr_dilation : na,               title = "DR2",           color = color.new(floor_pivots_r_color, atr_dilation and timeframe.isintraday ? 100 : 0),   linewidth = 1, style = plot.style_circles)
+r3b = plot(show_floor_pivots and show_daily_r3 and atr_dilation and timeframe.isintraday ? daily_r3-daily_atr_dilation : na,               title = "DR3",           color = color.new(floor_pivots_r_color, atr_dilation and timeframe.isintraday ? 100 : 0),   linewidth = 1, style = plot.style_circles)
+r4b = plot(show_floor_pivots and show_daily_r4 and atr_dilation and timeframe.isintraday ? daily_r4-daily_atr_dilation : na,               title = "DR4",           color = color.new(floor_pivots_r_color, atr_dilation and timeframe.isintraday ? 100 : 0),   linewidth = 1, style = plot.style_circles)
+s1b = plot(show_floor_pivots and show_daily_s1 and atr_dilation and timeframe.isintraday ? daily_s1-daily_atr_dilation : na,               title = "DS1",           color = color.new(floor_pivots_s_color, atr_dilation and timeframe.isintraday ? 100 : 0),   linewidth = 1, style = plot.style_circles)
+s2b = plot(show_floor_pivots and show_daily_s2 and atr_dilation and timeframe.isintraday ? daily_s2-daily_atr_dilation : na,               title = "DS2",           color = color.new(floor_pivots_s_color, atr_dilation and timeframe.isintraday ? 100 : 0),   linewidth = 1, style = plot.style_circles)
+s3b = plot(show_floor_pivots and show_daily_s3 and atr_dilation and timeframe.isintraday ? daily_s3-daily_atr_dilation : na,               title = "DS3",           color = color.new(floor_pivots_s_color, atr_dilation and timeframe.isintraday ? 100 : 0),   linewidth = 1, style = plot.style_circles)
+s4b = plot(show_floor_pivots and show_daily_s4 and atr_dilation and timeframe.isintraday ? daily_s4-daily_atr_dilation : na,               title = "DS4",           color = color.new(floor_pivots_s_color, atr_dilation and timeframe.isintraday ? 100 : 0),   linewidth = 1, style = plot.style_circles)
+// CPR Band 
+tcline = plot(show_cpr and show_daily_pivot and not atr_dilation ? daily_tc : show_cpr and show_daily_pivot and atr_dilation and timeframe.isintraday ? daily_tc+daily_atr_dilation : show_cpr and show_daily_pivot and atr_dilation and not timeframe.isintraday ? daily_tc : na,                                  title = "TC",           color = floor_pivots_cpr_color, linewidth = 1, style = plot.style_line)
+bcline = plot(show_cpr and show_daily_pivot and not atr_dilation ? daily_bc : show_cpr and show_daily_pivot and atr_dilation and timeframe.isintraday ? daily_bc-daily_atr_dilation : show_cpr and show_daily_pivot and atr_dilation and not timeframe.isintraday ? daily_bc : na,                                  title = "BC",           color = floor_pivots_cpr_color, linewidth = 1, style = plot.style_line)
+fill(tcline, bcline, color = color.new(floor_pivots_cpr_color, show_cpr and show_daily_pivot ? 75 : 100))
+// Fill ATR Dilated bands 
+fill(p1a, p1b, color.new(floor_pivots_p_color, 75))
+fill(r1a, r1b, color.new(floor_pivots_r_color, 75))
+fill(r2a, r2b, color.new(floor_pivots_r_color, 75))
+fill(r3a, r3b, color.new(floor_pivots_r_color, 75))
+fill(r4a, r4b, color.new(floor_pivots_r_color, 75))
+fill(s1a, s1b, color.new(floor_pivots_s_color, 75))
+fill(s2a, s2b, color.new(floor_pivots_s_color, 75))
+fill(s3a, s3b, color.new(floor_pivots_s_color, 75))
+fill(s4a, s4b, color.new(floor_pivots_s_color, 75))
+// Pivot Lables 
+if show_labels
+    chper = time - time[1]
+    chper := change(chper) > 0 ? chper[1] : chper
+
+    var label plabel = na 
+    var label s1label = na, var label s2label = na, var label s3label = na, var label s4label = na
+    var label r1label = na, var label r2label = na, var label r3label = na, var label r4label = na
+
+    label.delete(plabel)
+    label.delete(s1label), label.delete(s2label), label.delete(s3label), label.delete(s4label)
+    label.delete(r1label), label.delete(r2label), label.delete(r3label), label.delete(r4label)
+    if show_floor_pivots and show_daily_pivot
+        plabel  := label.new(x = timeframe.isintraday ? time + chper * 5 :  time + chper, y = atr_dilation and timeframe.isintraday ? daily_pivot+daily_atr_dilation    : daily_pivot,  text = "Pivot", color = floor_pivots_p_color, textcolor=color.black, style=label.style_labeldown, xloc = xloc.bar_time, yloc=yloc.price) 
+    if show_floor_pivots and show_daily_r1
+        r1label := label.new(x = timeframe.isintraday ? time + chper * 5 :  time + chper, y = atr_dilation and timeframe.isintraday ? daily_r1+daily_atr_dilation       : daily_r1,     text = "R1",    color = floor_pivots_r_color, textcolor=color.white, style=label.style_labeldown, xloc = xloc.bar_time, yloc=yloc.price)
+    if show_floor_pivots and show_daily_r2
+        r2label := label.new(x = timeframe.isintraday ? time + chper * 5 :  time + chper, y = atr_dilation and timeframe.isintraday ? daily_r2+daily_atr_dilation       : daily_r2,     text = "R2",    color = floor_pivots_r_color, textcolor=color.white, style=label.style_labeldown, xloc = xloc.bar_time, yloc=yloc.price)
+    if show_floor_pivots and show_daily_r3
+        r3label := label.new(x = timeframe.isintraday ? time + chper * 5 :  time + chper, y = atr_dilation and timeframe.isintraday ? daily_r3+daily_atr_dilation       : daily_r3,     text = "R3",    color = floor_pivots_r_color, textcolor=color.white, style=label.style_labeldown, xloc = xloc.bar_time, yloc=yloc.price)
+    if show_floor_pivots and show_daily_r4
+        r4label := label.new(x = timeframe.isintraday ? time + chper * 5 :  time + chper, y = atr_dilation and timeframe.isintraday ? daily_r4+daily_atr_dilation       : daily_r4,     text = "R4",    color = floor_pivots_r_color, textcolor=color.white, style=label.style_labeldown, xloc = xloc.bar_time, yloc=yloc.price)
+    if show_floor_pivots and show_daily_s1
+        s1label := label.new(x = timeframe.isintraday ? time + chper * 5 :  time + chper, y = atr_dilation and timeframe.isintraday ? daily_s1+daily_atr_dilation       : daily_s1,     text = "S1",    color = floor_pivots_s_color, textcolor=color.white, style=label.style_labeldown, xloc = xloc.bar_time, yloc=yloc.price)
+    if show_floor_pivots and show_daily_s2
+        s2label := label.new(x = timeframe.isintraday ? time + chper * 5 :  time + chper, y = atr_dilation and timeframe.isintraday ? daily_s2+daily_atr_dilation       : daily_s2,     text = "S2",    color = floor_pivots_s_color, textcolor=color.white, style=label.style_labeldown, xloc = xloc.bar_time, yloc=yloc.price)
+    if show_floor_pivots and show_daily_s3
+        s3label := label.new(x = timeframe.isintraday ? time + chper * 5 :  time + chper, y = atr_dilation and timeframe.isintraday ? daily_s3+daily_atr_dilation       : daily_s3,     text = "S3",    color = floor_pivots_s_color, textcolor=color.white, style=label.style_labeldown, xloc = xloc.bar_time, yloc=yloc.price)
+    if show_floor_pivots and show_daily_s4
+        s4label := label.new(x = timeframe.isintraday ? time + chper * 5 :  time + chper, y = atr_dilation and timeframe.isintraday ? daily_s4+daily_atr_dilation       : daily_s4,     text = "S4",    color = floor_pivots_s_color, textcolor=color.white, style=label.style_labeldown, xloc = xloc.bar_time, yloc=yloc.price)
