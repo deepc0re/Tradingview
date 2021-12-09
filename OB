@@ -1,0 +1,94 @@
+//@version=4
+
+study("NHD", overlay=true)
+
+boxp = input(defval=5, title="Length", minval=1, maxval=500)
+
+LL = lowest(low, boxp)
+k1 = highest(high, boxp)
+k2 = highest(high, boxp - 1)
+k3 = highest(high, boxp - 2)
+
+NH = valuewhen(high > k1[1], high, 0)
+box1 = k3 < k2
+TopBox = valuewhen(barssince(high > k1[1]) == boxp - 2 and box1, NH, 0)
+BottomBox = valuewhen(barssince(high > k1[1]) == boxp - 2 and box1, LL, 0)
+
+plot(TopBox, linewidth=3, color=#4a148c, title="TBbox")
+plot(BottomBox, linewidth=3, color=#4a148c, title="BBbox")
+
+Buy = crossover(close, TopBox)
+Sell = crossunder(close, BottomBox)
+
+alertcondition(Buy, title="Buy Signal", message="Buy")
+alertcondition(Sell, title="Sell Signal", message="Sell")
+
+plotshape(Buy, style=shape.labelup, location=location.belowbar, color=#4CAF50, size=size.tiny, title="Buy Signal", text="Buy", textcolor=color.black)
+plotshape(Sell, style=shape.labeldown, location=location.abovebar, color=#FF0000, size=size.tiny, title="Sell Signal", text="Sell", textcolor=color.white)
+
+
+plot(ema(close, 200), color=#000000, linewidth=2, title='200 Day EMA')
+plot(ema(close, 20), color=#1b5e20, linewidth=2, title='20 Day EMA')
+plot(ema(close, 50), color=#FF0000, linewidth=2, title='50 Day EMA')
+
+
+
+src = input(defval=close, title="Source")
+
+// Sampling Period
+// Settings for 5min chart, BTCUSDC. For Other coin, change the paremeters
+
+per = input(defval=100, minval=1, title="Sampling Period")
+
+// Range Multiplier
+
+mult = input(defval=3.0, minval=0.1, title="Range Multiplier")
+
+// Smooth Average Range
+
+smoothrng(x, t, m) =>
+    wper = t * 2 - 1
+    avrng = ema(abs(x - x[1]), t)
+    smoothrng = ema(avrng, wper) * m
+    smoothrng
+smrng = smoothrng(src, per, mult)
+
+// Range Filter
+
+rngfilt(x, r) =>
+    rngfilt = x
+    rngfilt := x > nz(rngfilt[1]) ? x - r < nz(rngfilt[1]) ? nz(rngfilt[1]) : x - r : 
+       x + r > nz(rngfilt[1]) ? nz(rngfilt[1]) : x + r
+    rngfilt
+filt = rngfilt(src, smrng)
+
+// Filter Direction
+
+upward = 0.0
+upward := filt > filt[1] ? nz(upward[1]) + 1 : filt < filt[1] ? 0 : nz(upward[1])
+downward = 0.0
+downward := filt < filt[1] ? nz(downward[1]) + 1 : filt > filt[1] ? 0 : nz(downward[1])
+
+// Target Bands
+
+hband = filt + smrng
+lband = filt - smrng
+
+// Colors
+filtcolor = upward > 0 ? color.lime : downward > 0 ? color.red : color.orange
+barcolor = src > filt and src > src[1] and upward > 0 ? color.lime : 
+   src > filt and src < src[1] and upward > 0 ? color.green : 
+   src < filt and src < src[1] and downward > 0 ? color.red : 
+   src < filt and src > src[1] and downward > 0 ? color.maroon : color.orange
+
+//filtplot = plot(filt, color=filtcolor, transp=100, title="Range Filter")
+filtplot = plot(filt, color=color.gray ,transp=100, title="Range Filter")
+// Target
+
+hbandplot = plot(hband,color=color.gray, linewidth=0, title="High Target")
+lbandplot = plot(lband,color=color.gray, linewidth=0, title="Low Target")
+
+// Fills
+
+fill(hbandplot, filtplot, title="High Target Range")
+fill(lbandplot, filtplot, title="Low Target Range")
