@@ -1,0 +1,267 @@
+//@version=4
+study("Strategic Trend By TrendciHoca",overlay=true)
+ 
+ 
+zoneLength     = input(type=input.integer, defval=10, title="ATR Length")
+zoneMultiplier = input(type=input.float, defval=3.0, step=0.1, title="ATR multiplier")
+
+disp_panels1 = input(true, title="BUY PANEL?")
+disp_panels2 = input(true, title="SELL PANEL?")
+psargoster = input(false, title="PSAR ?")
+psarsutungoster = input(false, title="PSAR Show with Columns?")
+psarnoktagoster = input(false, title="PSAR Show with Dots?")
+alGoster = input(true, title="BUY SIGNALS?")
+satGoster = input(true, title="SELL SIGNALS?")
+dikkatGoster=input(true, title="GO SIGNALS?")
+devamGoster=input(true, title="ATTENTIONS SIGNAKS")
+T3FiboLine = input(false, title="Show T3 Fibonacci Ratio Line?")
+h1 = input(false, title = "Signals from Heikin Ashi Candles")
+til = input(true, title = "Show Tillson")
+hmaLonggoster=input(true, title="HMA show?")
+
+
+//PSAR - Default PSAR setting with the marking of red and green as per position of above or below candle
+
+pSARbeginningValue   = input(2, minval=0, maxval=10, title="PSAR START")
+pSARendValue         = input(2, minval=1, maxval=10, title="PSAR FINISH ")
+pSARmultiplierValue  = input(2, minval=0, maxval=10, title=" PSAR COEF " )
+
+pSARbeginningMethod  = pSARbeginningValue * .01
+pSARendMethod        = pSARendValue * .10
+pSARmultiplierMethod = pSARmultiplierValue * .01
+
+pSAR_UpValue         = sar(pSARbeginningMethod, pSARmultiplierMethod, pSARendMethod)
+pSAR_DownValue       = sar(pSARbeginningMethod, pSARmultiplierMethod, pSARendMethod)
+
+pSAR_UpColor         = close >= pSAR_DownValue ? color.green : na
+pSAR_DownColor       = close <= pSAR_UpValue ? color.red : na
+ 
+plot(pSAR_UpValue and psargoster and psarsutungoster? pSAR_UpValue : na, style=plot.style_columns, linewidth=1, title="PSAR UP", color = color.new(pSAR_UpColor, transp = 85))
+plot(pSAR_DownValue and psargoster and psarsutungoster ? pSAR_DownValue : na, style=plot.style_columns,  linewidth=1, title="PSAR DOWN", color = color.new(pSAR_DownColor, transp = 85))
+
+plot(pSAR_UpValue and psargoster and psarnoktagoster ? pSAR_UpValue : na, style=plot.style_circles, color=pSAR_UpColor, linewidth=1, title="PSAR UP")
+plot(pSAR_DownValue and psargoster and psarnoktagoster ? pSAR_DownValue : na, style=plot.style_circles, color=pSAR_DownColor, linewidth=1, title="PSAR ASAGI")
+
+
+//Zone Identification - This is once again ATR based method to identify the zone based on its strength
+
+zoneSource     = hl2
+src=hl2
+
+zoneATR        = atr(zoneLength)
+
+downZone       =zoneSource+(zoneMultiplier*zoneATR)
+downZoneNew    = nz(downZone[1], downZone)
+downZone       := close[1] < downZoneNew ? min(downZone, downZoneNew) : downZone
+upZone         =zoneSource-(zoneMultiplier*zoneATR)
+upZoneNew      = nz(upZone[1],upZone)
+upZone        := close[1] > upZoneNew ? max(upZone,upZoneNew) : upZone
+
+zoneDecider    = 1
+zoneDecider   := nz(zoneDecider[1], zoneDecider)
+zoneDecider   := zoneDecider == -1 and close > downZoneNew ? 1 : zoneDecider == 1 and close < upZoneNew ? -1 : zoneDecider
+
+redZone        = zoneDecider == -1 and zoneDecider[1] == 1
+greenZone      = zoneDecider == 1 and zoneDecider[1] == -1
+downZoneColor  = (zoneDecider == -1 ? color.new(color.red, transp = 90) : color.gray)
+upZoneColor    = (zoneDecider == 1 ? color.new(color.green, transp = 90) : color.gray)
+
+downZonePlot   = plot(zoneDecider == 1 ? na : downZone, style=plot.style_linebr, linewidth=2, color=color.red, title="downZone")
+
+plotshape(redZone ? downZone : na, location=location.absolute, style=shape.diamond, size=size.tiny, color=color.red,  title="downZone")
+plotshape(redZone and satGoster? downZone : na, location=location.absolute, style=shape.labeldown, size=size.tiny, color=color.red, textcolor=color.white,  title="Sell", text="Sell")
+
+upZonePlot     = plot(zoneDecider == 1 ? upZone : na, style=plot.style_linebr, linewidth=2, color=color.green, title="Up Zone")
+
+plotshape(greenZone ? upZone : na, location=location.absolute, style=shape.diamond, size=size.tiny, color=color.green,  title="Up Zone")
+plotshape(greenZone and alGoster ? upZone : na, location=location.belowbar, style=shape.labelup, size=size.tiny, color=color.green, textcolor=color.white,  title="Buy", text="Buy")
+
+aldigimfiyat=tostring(valuewhen(greenZone,zoneSource,0))
+sattigimfiyat=tostring(valuewhen(redZone,zoneSource,0))
+
+Buy=greenZone
+Sell=redZone
+if greenZone==1
+    l = label.new(bar_index, na)
+    label.set_text(l, aldigimfiyat)
+    label.set_color(l, color.green)
+    label.set_yloc(l, yloc.belowbar)
+    label.set_style(l, label.style_labelup)
+if redZone==1
+    l = label.new(bar_index, na)
+    label.set_text(l, sattigimfiyat)
+    label.set_color(l, color.red)
+    label.set_yloc(l, yloc.abovebar)
+    label.set_style(l, label.style_labeldown)
+
+neutralZonePlot = plot(ohlc4, style=plot.style_circles, linewidth=0, title="AREA")
+fill(neutralZonePlot, downZonePlot, color=downZoneColor, title="COLOR DOWN")
+fill(neutralZonePlot, upZonePlot, color=upZoneColor, title="COLOR UP")
+
+emaLowerPeriod = 9
+emaLower       = ema(close, emaLowerPeriod)
+emaMediumPeriod = 27
+emaMedium       = ema(close, emaMediumPeriod)
+hmaLongPeriod  = 200
+hmaLong        = hma(close, hmaLongPeriod)
+
+plot(hmaLonggoster?hmaLong:na,color=color.new(color.blue, transp = 50), linewidth=2, title="HMA")
+//Hull Hareketli Ortalamas? (HMA), Alan Hull taraf?ndan gecikmeyi azaltmak, yan?t vermeyi art?rmak ve ayn? zamanda gurultuyu ortadan kald?rmak amac?yla gelistirilmistir. 
+//Hesaplamas? ayr?nt?l?d?r ve Ag?rl?kl? Ortalama(WMA) hesab?n? kullan?r. 
+isCloseAbove   = (close > emaLower and close > hmaLong)
+isCloseBelow   = (close < emaLower and close < hmaLong) 
+isCloseBetween = (close > emaLower and close < hmaLong) or (close < emaLower and close > hmaLong)
+isNeutral = (close > pSAR_DownValue and isCloseBelow) or (close < pSAR_DownValue and isCloseAbove)
+
+position=input(50)
+h=highest(position)
+info_label_off = input(50, title="Info panel offset")
+info_label_size = input(size.normal, options=[size.tiny, size.small, size.normal, size.large, size.huge], title="Info panel label size")
+info_panel_x = time + round(change(time)*10)
+info_panel_y = close
+info_current_close = "\n\n LAST PRICE : " + tostring(close)
+
+binance = security("BINANCE:BTCUSDT", timeframe.period, close)
+
+Long="-=-=-BUY-=-=-   "
+Short="-=-=-SELL-=-=-   "
+
+pp1 = "\n\BARs count after buy : " + tostring(barssince(Buy), "##.##")
+pp2 = "\n\BARs count after sell : " + tostring(barssince(Sell), "##.##")
+
+Buyprice="\n\BUY price : " + tostring(valuewhen(Buy,src,0), "##.######") + ""
+ProfitLong="\n\Profit : " + "(" + tostring(100 * ((src - valuewhen(Buy, src,0)) / valuewhen(Buy, src,0)), "##.##")+ "%)\n BTCUSDT : " + tostring(binance, "#.##")
+
+Sellprice="\n\BUY price  : " + tostring(valuewhen(Sell, src,0), "##.######") + ""
+ProfitShort="\n\Profit : " + "(" + tostring(100 * ((valuewhen(Sell, src,0) - src) / valuewhen(Sell, src,0)), "##.##") + "%)\n BTCUSDT : " + tostring(binance, "#.##")
+
+info_textlongbuy =Long+info_current_close+pp1+Buyprice+ProfitLong
+info_textlongsell =Short+info_current_close+pp2+Sellprice+ProfitShort
+info_panellongbuy = zoneDecider == 1 and disp_panels1 ? label.new(x=info_panel_x, y=info_panel_y, text=info_textlongbuy, xloc=xloc.bar_time, yloc=yloc.price, color=color.green, style=label.style_label_left, textcolor=color.black, size=info_label_size) : na 
+info_panellongsell = zoneDecider == -1 and disp_panels2 ? label.new(x=info_panel_x, y=info_panel_y, text=info_textlongsell, xloc=xloc.bar_time, yloc=yloc.price, color=color.red, style=label.style_label_left, textcolor=color.black, size=info_label_size) : na
+label.delete(info_panellongbuy[1])
+label.delete(info_panellongsell[1])
+ 
+a1 = input(2,     title = "Key Vaule. 'This changes the sensitivity'")
+c1 = input(8,    title = "ATR Period")
+
+xATR1  = atr(c1)
+nLoss1 = a1 * xATR1
+
+src1 = h1 ? security(heikinashi(syminfo.tickerid), timeframe.period, close, lookahead = false) : close
+
+xATRTrailingStop1 = 0.0
+xATRTrailingStop1 := iff(src1 > nz(xATRTrailingStop1[1], 0) and src1[1] > nz(xATRTrailingStop1[1], 0), max(nz(xATRTrailingStop1[1]), src1 - nLoss1),
+   iff(src1 < nz(xATRTrailingStop1[1], 0) and src1[1] < nz(xATRTrailingStop1[1], 0), min(nz(xATRTrailingStop1[1]), src1 + nLoss1), 
+   iff(src1 > nz(xATRTrailingStop1[1], 0), src1 - nLoss1, src1 + nLoss1)))
+ 
+pos1 = 0   
+pos1 :=	iff(src1[1] < nz(xATRTrailingStop1[1], 0) and src1 > nz(xATRTrailingStop1[1], 0), 1,
+   iff(src1[1] > nz(xATRTrailingStop1[1], 0) and src1 < nz(xATRTrailingStop1[1], 0), -1, nz(pos1[1], 0))) 
+   
+xcolor1 = pos1 == -1 ? color.red: pos1 == 1 ? color.green : color.blue 
+
+ema1   = ema(src1,1)
+above1 = crossover(ema1, xATRTrailingStop1)
+below1 = crossover(xATRTrailingStop1, ema1)
+
+buy1  = src1 > xATRTrailingStop1 and above1 
+sell1 = src1 < xATRTrailingStop1 and below1
+
+barbuy1  = src1 > xATRTrailingStop1 
+barsell1 = src1 < xATRTrailingStop1 
+
+plotshape(buy1 and devamGoster,  title = "GO",  text = '?',  style = shape.labelup,   location = location.belowbar, color= color.green, textcolor = color.white,  size = size.tiny)
+plotshape(sell1 and dikkatGoster, title = "ATTENTION", text = '!', style = shape.labeldown, location = location.abovebar, color= color.red,   textcolor = color.white,  size = size.tiny)
+
+barcolor(barbuy1  ? color.green : na)
+barcolor(barsell1 ? color.red   : na)
+//tillsonn
+
+length1 = input(8, "T3 Length")
+ae1 = input(0.7, "Volume Factor")
+
+e1 = ema((high + low + 2 * close) / 4, length1)
+e2 = ema(e1, length1)
+e3 = ema(e2, length1)
+e4 = ema(e3, length1)
+e5 = ema(e4, length1)
+e6 = ema(e5, length1)
+ce1 = -ae1 * ae1 * ae1
+c2 = 3 * ae1 * ae1 + 3 * ae1 * ae1 * ae1
+c3 = -6 * ae1 * ae1 - 3 * ae1 - 3 * ae1 * ae1 * ae1
+c4 = 1 + 3 * ae1 + ae1 * ae1 * ae1 + 3 * ae1 * ae1
+T3 = ce1 * e6 + c2 * e5 + c3 * e4 + c4 * e3
+
+col1 = T3 > T3[1]
+col3 = T3 < T3[1]
+color_1 = col1 ? color.new(color.green, transp = 0)  : col3 ? color.new(color.red, transp = 0) : color.yellow
+plot( til? T3 :na, color=color_1, linewidth=3, title="T3")
+
+length12 = input(5, "T3 Length fibo")
+ae12 = input(0.618, "Volume Factor fibo")
+
+e12 = ema((high + low + 2 * close) / 4, length12)
+e22 = ema(e12, length12)
+e32 = ema(e22, length12)
+e42 = ema(e32, length12)
+e52 = ema(e42, length12)
+e62 = ema(e52, length12)
+ce12 = -ae12 * ae12 * ae12
+c22 = 3 * ae12 * ae12 + 3 * ae12 * ae12 * ae12
+c32 = -6 * ae12 * ae12 - 3 * ae12 - 3 * ae12 * ae12 * ae12
+c42 = 1 + 3 * ae12 + ae12 * ae12 * ae12 + 3 * ae12 * ae12
+T32 = ce12 * e62 + c22 * e52 + c32 * e42 + c42 * e32
+
+col12 = T32 > T32[1]
+col32 = T32 < T32[1]
+color2 = col12 ? color.blue : col32 ? color.purple : color.yellow
+plot(T3FiboLine and T32 ? T32 : na, color=color2, linewidth=2, title="T3fibo")
+
+buyukalis=hmaLong<src?1:0
+buyuksatis=hmaLong>src*1.01?1:0
+
+
+///dipciiii
+
+
+
+length = input(130, title="Length")
+coef = input(0.2)
+vcoef = input(2.5, title="Volume")
+signalLength=5
+smoothVFI=false
+
+ma(x,y) => smoothVFI ? sma(x,y) : x
+
+typical=hlc3
+inter = log( typical ) - log( typical[1] )
+vinter = stdev(inter, 30 )
+cutoff = coef * vinter * close
+vave = sma( volume, length )[1]
+vmax = vave * vcoef
+vc = iff(volume < vmax, volume, vmax) //min( volume, vmax )
+mf = typical - typical[1]
+vcp = iff( mf > cutoff, vc, iff ( mf < -cutoff, -vc, 0 ) )
+
+vfi = ma(sum( vcp , length )/vave, 3)
+vfima=ema( vfi, signalLength )
+d=vfi-vfima
+BS=crossover(hmaLong,T3) and buyuksatis and vfi>0
+BA=crossunder(hmaLong,T3) and buyukalis and vfi<0
+plotshape(BS, title = "SELL CUT", text = 'BS', style = shape.labeldown, location = location.abovebar, color= color.red,   textcolor = color.white,  size = size.tiny)
+plotshape(BA,  title = "BUY CUT",  text = 'BA',  style = shape.labelup,   location = location.belowbar, color= color.green, textcolor = color.white,  size = size.tiny)
+
+
+buy=greenZone ? upZone : na 
+sell=redZone ? downZone : na
+
+alertcondition(greenZone ? upZone : na,  "BUY",  "BUY")
+alertcondition(redZone ? downZone : na, "SELL", "SELL")
+
+
+alertcondition(buy1,  "GO",  "GO")
+alertcondition(sell1, "ATTENTION", "ATTENTION")
+
+alertcondition(BA,  "Maybe Big Buy",  "Maybe Big Buy")
+alertcondition(BS, "Maybe Big Sell", "Maybe Big Sell")
