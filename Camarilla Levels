@@ -1,0 +1,113 @@
+//@version=4
+study("Expanded Camarilla Levels", overlay = true)
+mode =input(title = "HTF Method", defval = 'Auto', options=['Auto', 'User Defined'])
+HTFm = input('D', title = "Time Frame (if HTF Method=User Defined)", type=input.resolution)
+showlast = input(title = "Show Only Last Period", defval = true)
+showlabels = input(title = "Show Labels", defval = true)
+lstyle = input(title = "Line Style", options = ['Solid', 'Circles', 'Cross'], defval ='Solid')
+ 
+//auto higher time frame
+HTFo =timeframe.period == '1' ? '30' : 
+  timeframe.period == '3' ? '60' : 
+  timeframe.period == '5' ? '240' : 
+  timeframe.period == '15' ? 'D' : 
+  timeframe.period == '30' ? 'D' : 
+  timeframe.period == '45' ? 'D' : 
+  timeframe.period == '60' ? 'D' : 
+  timeframe.period == '120' ? 'D' : 
+  timeframe.period == '180' ? 'D' : 
+  timeframe.period == '240' ? 'D' : 
+  timeframe.period == 'D' ? 'W' :
+  '5W'
+  
+HTF = mode == 'Auto' ? HTFo : HTFm
+    
+highhtf = security(syminfo.tickerid, HTF, high[1], lookahead = barmerge.lookahead_on)
+lowhtf = security(syminfo.tickerid, HTF, low[1], lookahead = barmerge.lookahead_on)
+closehtf = security(syminfo.tickerid, HTF, close[1], lookahead = barmerge.lookahead_on)
+
+RANGE = highhtf - lowhtf
+
+// is this last bar for HTF?
+islast = showlast ? security(syminfo.tickerid, HTF, barstate.islast, lookahead = true) : true
+
+// Line Style
+linestyle = lstyle == 'Solid' ? plot.style_line :
+   lstyle == 'Circle' ? plot.style_circles : plot.style_cross
+
+H5 = (highhtf / lowhtf) * closehtf
+H4 = closehtf + RANGE * 1.1/2
+H3 = closehtf + RANGE * 1.1/4
+H2 = closehtf + RANGE * 1.1/6
+H1 = closehtf + RANGE * 1.1/12
+L1 = closehtf - RANGE * 1.1/12
+L2 = closehtf - RANGE * 1.1/6
+L3 = closehtf - RANGE * 1.1/4
+L4 = closehtf - RANGE * 1.1/2
+L5 = closehtf - (H5 - closehtf)
+
+plot(islast ? H5 : na, title = "H5", color = color.red, linewidth = 1, style = linestyle, transp = 0)
+plot(islast ? H4 : na, title = "H4", color = color.red, linewidth = 1, style = linestyle, transp = 0)
+plot(islast ? H3 : na, title = "H3", color = color.red, linewidth = 1, style = linestyle, transp = 0)
+plot(islast ? L3 : na, title = "L3", color = color.lime, linewidth = 1, style = linestyle, transp = 0)
+plot(islast ? L4 : na, title = "L4", color = color.lime, linewidth = 1, style = linestyle, transp = 0)
+plot(islast ? L5 : na, title = "L5", color = color.lime, linewidth = 1, style = linestyle, transp = 0)
+
+// Label for S/R
+chper = time - time[1]
+chper := change(chper) > 0 ? chper[1] : chper
+
+Round_it(valu)=>
+    a = 0
+    num = syminfo.mintick
+    s = valu
+    if na(s)
+        s := syminfo.mintick
+    if num < 1
+        for i = 1 to 20
+            num := num * 10
+            if num > 1
+                break
+            a := a +1
+    
+    for x = 1 to a 
+        s := s * 10
+    s := round(s)
+    for x = 1 to a
+        s := s / 10
+    s := s < syminfo.mintick  ? syminfo.mintick : s
+    s
+
+// Labels
+if showlabels
+    var label s3label = na, var label s4label = na, var label s5label = na
+    var label r3label = na, var label r4label = na, var label r5label = na
+    
+    label.delete(s3label), label.delete(s4label), label.delete(s5label)
+    label.delete(r3label), label.delete(r4label), label.delete(r5label)
+    s3label := label.new(x = time + chper * 70, y = L3, text = "L3= " + tostring(Round_it(L3)), color = color.lime, textcolor=color.black, style=label.style_labeldown, xloc = xloc.bar_time, yloc=yloc.price)
+    s4label := label.new(x = time + chper * 70, y = L4, text = "L4= " + tostring(Round_it(L4)), color = color.lime, textcolor=color.black, style=label.style_labeldown, xloc = xloc.bar_time, yloc=yloc.price)
+    s5label := label.new(x = time + chper * 70, y = L5, text = "L5= " + tostring(Round_it(L5)), color = color.lime, textcolor=color.black, style=label.style_labeldown, xloc = xloc.bar_time, yloc=yloc.price)
+    r3label := label.new(x = time + chper * 70, y = H3, text = "H3= " + tostring(Round_it(H3)), color = color.red, textcolor=color.white, style=label.style_labeldown, xloc = xloc.bar_time, yloc=yloc.price)
+    r4label := label.new(x = time + chper * 70, y = H4, text = "H4= " + tostring(Round_it(H4)), color = color.red, textcolor=color.white, style=label.style_labeldown, xloc = xloc.bar_time, yloc=yloc.price)
+    r5label := label.new(x = time + chper * 70, y = H5, text = "H5= " + tostring(Round_it(H5)), color = color.red, textcolor=color.white, style=label.style_labeldown, xloc = xloc.bar_time, yloc=yloc.price)
+    
+    
+    //
+c1 = close[1] < open[1] and close > open
+c2 = close > open[1]
+c3 = lowest(low,3) < lowest (low,50)[1] or lowest(low,3) < lowest(low,50)[2] or lowest(low,3) < lowest(low,50)[3]
+buy = c1 and c2 and c3
+//
+c4 = close[1] > open[1] and close < open
+c5 = close < open[1]
+c6 = highest(high,3) > highest (high,50)[1] or highest(high,3) > highest(high,50)[2] or highest(high,3) > highest(high,50)[3]
+sell = c4 and c5 and c6
+//
+plotshape(buy == 1 , text='👽', style=shape.arrowup, location=location.belowbar, color=#32CD32, textcolor=color.white, offset=0, transp=0,size=size.auto)
+plotshape(sell == 1 , text='🍆', style=shape.arrowdown, location=location.abovebar, color=#FF0000, textcolor=color.white, offset=0, transp=0,size=size.auto)
+//
+alertcondition(sell == 1 ,title="Sell",message="Sell")
+alertcondition(buy == 1 ,title="Buy",message="Buy")
+alertcondition(buy == 1 or sell == 1 ,title="Buy/Sell",message="Buy/Sell")
+//    
