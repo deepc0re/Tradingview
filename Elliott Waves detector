@@ -1,0 +1,145 @@
+//@version=4
+study(title="Elliott Waves detector", shorttitle="Elliott", overlay=true, max_bars_back=2000)
+
+zigza = input(title="Draw zigzag line ?", type=input.bool, defval=true)
+just5 = input(title="All waves ?", type=input.bool, defval=true)
+fibl = input(title="Fib Levels ?", type=input.bool, defval=true)
+start = input(title="Base", type=input.float, defval=0.01)
+incre = input(title="Aceleration force", type=input.float, defval=0.01)
+maximum = input(title="Max Aceleration", type=input.float, defval=0.1)
+
+out = sar(start + .01, incre + .01, maximum + .1)
+gama = input(0.80, type=input.float)
+
+sma_1 = sma(high - low, 15)
+beta0 = bar_index == 14 ? sma_1 : 0
+beta1 = valuewhen(beta0, close, 0)
+
+x = out - close
+y = x[1] > 0 and x < 0
+z = x[1] < 0 and x > 0
+alfa = y == true or z == true ? true : false
+wave = y == true ? (low + out) / 2 : z == true ? (high + out) / 2 : na
+
+//Wave parameters
+back1 = valuewhen(alfa, wave, 1)
+back2 = valuewhen(alfa, wave, 2)
+back3 = valuewhen(alfa, wave, 3)
+
+///     ///     ///     ///     ///     ///     ///     IDENTIFY ELLIOTT WAVES      ///     ///     ///     ///     ///     ///     ///
+////////////////////////    WAVE 1
+wave1 = if alfa == true
+    a = wave > back1
+    b = wave < back1
+    c = a ? 1 : b ? -1 : 0
+    c
+else
+    0
+
+////////////////////////    WAVE 2
+wave2 = if alfa == true
+    a = back1 > back2 and back1 > wave and wave > back2
+    b = back1 < back2 and back1 < wave and wave < back2
+    c = a ? 1 : b ? -1 : 0
+    c
+else
+    0
+
+////////////////////////    WAVE 3
+//Wave3
+wave3 = if alfa == true
+    a = valuewhen(alfa, wave2, 1) == 1 and wave > back1 and wave > back2
+    b = valuewhen(alfa, wave2, 1) == -1 and wave < back1 and wave < back2
+    c = a ? 1 : b ? -1 : 0
+    c
+else
+    0
+
+///////////////////////     WAVE 4
+wave4 = if alfa == true
+    a = valuewhen(alfa, wave3, 1) == 1 and wave < back1 and wave > back3
+    b = valuewhen(alfa, wave3, 1) == -1 and wave > back1 and wave < back3
+    c = a ? 1 : b ? -1 : 0
+    c
+else
+    0
+
+///////////////////////     WAVE 5
+wave5 = if alfa == true
+    a = valuewhen(alfa, wave4, 1) == 1 and wave > back1
+    b = valuewhen(alfa, wave4, 1) == -1 and wave < back1
+    c = a ? 1 : b ? -1 : 0
+    c
+else
+    0
+
+///     ///     ///     ///     ///     ///     ///     IDENTIFY FIBONACCI LEVELS       ///     ///     ///     ///     ///     ///
+
+//////////////////////////////////////////////////      FIBONACCI WAVES 3 & 5
+wave_35fib = if wave3 == 1 or wave5 == 1
+    a = back2 - back1
+    fib1618 = abs(wave - (back1 + a * 1.618))
+    fib2618 = abs(wave - (back1 + a * 2.618))
+    fib3618 = abs(wave - (back1 + a * 3.618))
+    fib4236 = abs(wave - (back1 + a * 4.236))
+    res = wave + min(min(fib1618, fib2618), min(fib3618, fib4236))
+    res
+else
+    if wave3 == -1 or wave5 == -1
+        a = back1 - back2
+        fib1618 = abs(wave - (back1 - a * 1.618))
+        fib2618 = abs(wave - (back1 - a * 2.618))
+        fib3618 = abs(wave - (back1 - a * 3.618))
+        fib4236 = abs(wave - (back1 - a * 4.236))
+        res = wave - min(min(fib1618, fib2618), min(fib3618, fib4236))
+        res
+    else
+        na
+
+///////////////////////////////////////////////////     FIBONACCI WAVES 2 & 4
+wave_24fib = if wave2 == 1 or wave4 == 1
+    a = back1 - back2
+    fib786 = abs(wave - (back2 + a * .786))
+    fib500 = abs(wave - (back2 + a * .500))
+    fib382 = abs(wave - (back2 + a * .382))
+    fib236 = abs(wave - (back2 + a * .236))
+    res = wave + min(min(fib786, fib500), min(fib382, fib236))
+    res
+else
+    if wave2 == -1 or wave4 == -1
+        a = back2 - back1
+        fib786 = abs(wave - (back2 - a * .786))
+        fib500 = abs(wave - (back2 - a * .500))
+        fib382 = abs(wave - (back2 - a * .382))
+        fib236 = abs(wave - (back2 - a * .236))
+        res = wave - min(min(fib786, fib500), min(fib382, fib236))
+        res
+    else
+        na
+
+////    ////    ////    ////    ////    ////    ////    ////    SETTING WAVES PRIORITY  ////   ////    ////    ////    ////    ////    ////    ////
+txtbull = wave5 == 1 ? 5 : 
+   wave4 == 1 ? 4 : wave3 == 1 ? 3 : wave2 == 1 ? 2 : wave1 == 1 ? 1 : na
+txtbear = wave5 == -1 ? 5 : 
+   wave4 == -1 ? 4 : wave3 == -1 ? 3 : wave2 == -1 ? 2 : wave1 == -1 ? 1 : na
+plotdow = wave - 2 * sma(high - low, 200)
+plotupe = wave + 2 * sma(high - low, 200)
+
+plotshape(txtbull == 5 ? plotupe : na, text="(5)", style=shape.labelup, color=color.blue, textcolor=color.white, location=location.absolute, transp=0, offset=0, editable=false)
+plotshape(txtbull == 4 and just5 ? plotdow : na, text="(  4  )", style=shape.labeldown, color=color.blue, textcolor=color.white, location=location.absolute, transp=0, offset=0, editable=false)
+plotshape(txtbull == 3 and just5 ? plotupe : na, text="(  3  )", style=shape.labelup, color=color.blue, textcolor=color.white, location=location.absolute, transp=0, offset=0, editable=false)
+plotshape(txtbull == 2 and just5 ? plotdow : na, text="(  2  )", style=shape.labeldown, color=color.blue, textcolor=color.white, location=location.absolute, transp=0, offset=0, editable=false)
+plotshape(txtbull == 1 and just5 ? plotupe : na, text="(  1  )", style=shape.labelup, color=color.blue, textcolor=color.white, location=location.absolute, transp=0, offset=0, editable=false)
+
+plotshape(txtbear == 5 ? plotdow : na, text="(5)\n", style=shape.labeldown, color=color.maroon, textcolor=color.white, location=location.absolute, transp=50, offset=0, editable=false)
+plotshape(txtbear == 4 and just5 ? plotupe : na, text="\n(4)", style=shape.labelup, color=color.maroon, textcolor=color.white, location=location.absolute, transp=50, offset=0, editable=false)
+plotshape(txtbear == 3 and just5 ? plotdow : na, text="(3)\n", style=shape.labeldown, color=color.maroon, textcolor=color.white, location=location.absolute, transp=50, offset=0, editable=false)
+plotshape(txtbear == 2 and just5 ? plotupe : na, text="\n(2)", style=shape.labelup, color=color.maroon, textcolor=color.white, location=location.absolute, transp=50, offset=0, editable=false)
+plotshape(txtbear == 1 and just5 ? plotdow : na, text="(1)\n", style=shape.labeldown, color=color.maroon, textcolor=color.white, location=location.absolute, transp=50, offset=0, editable=false)
+
+plot(zigza ? wave : na, color=color.white, linewidth=3, transp=0, editable=true)
+plot(zigza ? wave : na, color=color.orange, style=plot.style_circles, transp=0, linewidth=4, editable=false)
+plot(fibl ? wave_24fib : na, color=wave_24fib > wave ? color.lime : color.purple, style=plot.style_cross, linewidth=4, transp=0)
+plot(fibl ? wave_35fib : na, color=wave_35fib > wave ? color.lime : color.purple, style=plot.style_cross, linewidth=4, transp=0)
+bgcolor(txtbull == 5 or txtbear == 5 ? color.yellow : na)
+alertcondition(alfa == true, title="Wave formation", message="New wave formation")
